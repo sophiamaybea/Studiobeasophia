@@ -1,0 +1,51 @@
+name: Bench World Vercel Preview
+
+on:
+  push:
+    branches:
+      - bench-world-immersive
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect Vercel credential
+        id: vercel
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Use Node.js 22
+        if: steps.vercel.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy preview
+        if: steps.vercel.outputs.available == 'true'
+        id: deploy
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          URL="$(npx --yes vercel@latest deploy --yes --token "$VERCEL_TOKEN")"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Preview: $URL"
+
+      - name: Credential unavailable
+        if: steps.vercel.outputs.available != 'true'
+        run: echo "VERCEL_TOKEN is not configured in this GitHub repository."
