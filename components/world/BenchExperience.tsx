@@ -65,16 +65,12 @@ export default function BenchExperience() {
     window.addEventListener('resize', onResize, { passive: true });
     document.addEventListener('visibilitychange', onVisibility);
     motion.addEventListener?.('change', onMotion);
-    const idle = 'requestIdleCallback' in window
-      ? (window as Window & { requestIdleCallback: (cb: IdleRequestCallback, opts?: IdleRequestOptions) => number }).requestIdleCallback(() => setSecondaryReady(true), { timeout: 1300 })
-      : window.setTimeout(() => setSecondaryReady(true), 700);
+    const idle = window.setTimeout(() => setSecondaryReady(true), profile === 'mobile' ? 850 : 550);
     return () => {
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibility);
       motion.removeEventListener?.('change', onMotion);
-      if ('cancelIdleCallback' in window) {
-        (window as Window & { cancelIdleCallback: (id:number)=>void }).cancelIdleCallback(idle);
-      } else window.clearTimeout(idle);
+      window.clearTimeout(idle);
     };
   }, []);
 
