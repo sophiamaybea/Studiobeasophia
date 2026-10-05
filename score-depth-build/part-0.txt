@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#eae4d7" />
+<title>Studio Bea Sophia — Kasse II / Score Architecture</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #ece5d8;
+    --paper-hi: #f6f0e5;
+    --paper-edge: #c5baaa;
+    --paper-edge-dark: #9f9486;
+    --ink: #171512;
+    --soft-ink: rgba(23,21,18,.54);
+    --hairline: rgba(23,21,18,.22);
+    --progress: 0;
+    --pointer-x: 0;
+    --pointer-y: 0;
+    --score-w: 520px;
+    --score-h: 752px;
+    --edge: 14px;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background:
+      radial-gradient(1000px 650px at 50% 46%, rgba(255,255,255,.46), transparent 68%),
+      linear-gradient(180deg, #f1ebdf 0%, #e8e0d2 100%);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", Times, serif;
+    overscroll-behavior-y: none;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: .14;
+    mix-blend-mode: multiply;
+    background-image:
+      radial-gradient(circle at 18% 22%, rgba(49,38,25,.38) 0 .35px, transparent .5px),
+      radial-gradient(circle at 74% 63%, rgba(49,38,25,.22) 0 .45px, transparent .65px);
+    background-size: 8px 8px, 11px 11px;
+  }
+
+  .scroll-track { height: 660vh; }
+
+  .viewport {
+    position: sticky;
+    inset: 0 0 auto 0;
+    top: 0;
+    width: 100%;
+    height: 100svh;
+    overflow: clip;
+    isolation: isolate;
+  }
+
+  .ambient {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(closest-side at 50% 52%, rgba(255,255,255,.36), transparent 74%),
+      linear-gradient(90deg, rgba(104,82,54,.035), transparent 20%, transparent 80%, rgba(104,82,54,.035));
+    pointer-events: none;
+  }
+
+  .masthead {
+    position: absolute;
+    z-index: 40;
+    left: clamp(18px, 3.2vw, 54px);
+    top: clamp(18px, 3vw, 44px);
+    display: grid;
+    gap: 7px;
+    pointer-events: none;
+  }
+
+  .masthead strong {
+    font-size: clamp(14px, 1.12vw, 19px);
+    line-height: 1;
+    font-weight: 400;
+    letter-spacing: -.025em;
+  }
+
+  .meta,
+  .phase,
+  .scroll-note {
+    font: 9px/1.45 "Courier New", Courier, monospace;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--soft-ink);
+  }
+
+  .phase {
+    position: absolute;
+    z-index: 40;
+    right: clamp(18px, 3.2vw, 54px);
+    top: clamp(18px, 3vw, 44px);
+    text-align: right;
+    min-width: 17ch;
+    pointer-events: none;
+  }
+
+  .scroll-note {
+    position: absolute;
+    z-index: 40;
+    left: clamp(18px, 3.2vw, 54px);
+    bottom: clamp(18px, 3vw, 44px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    transition: opacity 300ms ease;
+  }
+
+  .scroll-note::before {
+    content: "";
+    width: 28px;
+    height: 1px;
+    background: currentColor;
+    transform-origin: left center;
+    animation: breathe 1.8s ease-in-out infinite;
+  }
+
+  @keyframes breathe { 50% { transform: scaleX(.55); opacity: .45; } }
+
+  .rail {
+    position: absolute;
+    z-index: 40;
+    right: clamp(18px, 3.2vw, 54px);
+    top: 50%;
+    width: 1px;
+    height: min(36vh, 290px);
+    transform: translateY(-50%);
+    background: var(--hairline);
+    pointer-events: none;
+  }
+
+  .rail::after {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: 0;
+    width: 3px;
+    height: calc(var(--progress) * 100%);
+    background: rgba(23,21,18,.62);
+  }
+
+  .rail span {
+    position: absolute;
+    right: 11px;
+    bottom: -2px;
+    transform: translateY(100%);
+    font: 8px/1 "Courier New", monospace;
+    letter-spacing: .09em;
+    color: var(--soft-ink);
+  }
+
+  .perspective {
+    position: absolute;
+    inset: 0;
+    perspective: clamp(950px, 86vw, 1700px);
+    perspective-origin: calc(50% + var(--pointer-x) * 16px) calc(50% + var(--pointer-y) * 12px);
+    display: grid;
+    place-items: center;
+  }
+
+  .world {
+    position: relative;
+    width: var(--score-w);
+    height: var(--score-h);
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  .score-shadow {
+    position: absolute;
+    inset: 7% -14% -12% -14%;
+    background: radial-gradient(ellipse at center, rgba(36,28,19,.30), rgba(36,28,19,.09) 48%, transparent 74%);
+    filter: blur(28px);
+    transform: translate3d(0, 34px, -170px) rotateX(74deg);
+    opacity: .42;
+    will-change: opacity, transform;
+  }
+
+  .flat,
+  .ghost,
+  .slice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    transform-style: preserve-3d;
+    will-change: transform, opacity;
+  }
+
+  .flat {
+    height: 100%;
+    overflow: hidden;
+    background: var(--paper-hi);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.75) inset,
+      0 0 0 1px rgba(58,45,31,.12),
+      0 30px 70px rgba(58,45,31,.15);
+  }
+
+  .flat img,
+  .ghost img,
+  .front img {
+    display: block;
+    width: 100%;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .flat img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ghost {
+    height: 100%;
+    opacity: 0;
+    filter: sepia(.06) contrast(1.05);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  .ghost img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .slice {
+    height: var(--slice-h);
+    top: var(--slice-top);
+    transform-origin: 50% 50%;
+  }
+
+  .front {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #f2ebdf;
+    backface-visibility: hidden;
+    box-shadow: 0 2px 0 rgba(255,255,255,.35) inset;
+  }
+
+  .front img {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    top: var(--image-offset);
+  }
+
+  .slice::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 100%;
+    width: 100%;
+    height: var(--edge);
+    transform-origin: 50% 0;
+    transform: rotateX(-90deg);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.22), transparent 20%),
+      linear-gradient(90deg, #b6ab9a, #d0c6b6 50%, #a99d8c);
+    box-shadow: 0 1px 0 rgba(38,30,22,.12) inset;
+  }
+
+  .slice::before {
+    content: "";
+    position: absolute;
+    left: 100%;
+    top: 0;
+    width: var(--edge);
+    height: 100%;
+    transform-origin: 0 50%;
+    transform: rotateY(90deg);
+    background: linear-gradient(90deg, #b5aa99, #938777);
+  }
+
+  .vignette {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(83,63,40,.05) 78%, rgba(83,63,40,.1) 100%);
+  }
+
+  .loading {
+    position: absolute;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: var(--paper);
+    transition: opacity 450ms ease, visibility 450ms ease;
+  }
+  .loading[hidden] { opacity: 0; visibility: hidden; display: grid; }
+  .loading span {
+    font: 9px/1.4 "Courier New", monospace;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--soft-ink);
+  }
+
+  @media (max-width: 700px) {
+    .phase { top: auto; bottom: clamp(18px, 4vw, 28px); }
+    .rail { display: none; }
+    .scroll-note { bottom: clamp(18px, 4vw, 28px); }
+    .phase { right: clamp(18px, 4vw, 28px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-note::before { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="scroll-track" id="track">
+  <main class="viewport" aria-label="Scroll-controlled three dimensional interpretation of the Kasse II score">
+    <div class="ambient"></div>
+    <header class="masthead" ar
